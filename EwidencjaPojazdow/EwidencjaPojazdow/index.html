@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoFix Manager - Obsługa Zleceń</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --bg-light: #f8f9fa;
+        }
+        body {
+            background-color: var(--bg-light);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+        .navbar-brand {
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .card-shadow {
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+        .card-shadow:hover {
+            transform: translateY(-2px);
+        }
+        .status-pill {
+            padding: 5px 12px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        #alertContainer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            min-width: 300px;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="#"><i class="bi bi-wrench-adjustable-circle me-2"></i>AutoFix Manager</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link active" href="#">Zlecenia</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Klienci</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Magazyn</a></li>
+                </ul>
+                <div class="d-flex align-items-center ms-3 text-white-50">
+                    <small>Zalogowany: Serwisant Tomasz</small>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div id="alertContainer"></div>
+
+    <div class="container">
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card card-shadow bg-white p-3 border-start border-4 border-primary">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted text-uppercase mb-1">Oczekujące</h6>
+                            <h2 class="mb-0" id="statPending">0</h2>
+                        </div>
+                        <div class="fs-1 text-primary opacity-25"><i class="bi bi-hourglass-split"></i></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-shadow bg-white p-3 border-start border-4 border-success">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted text-uppercase mb-1">Przychód (Est.)</h6>
+                            <h2 class="mb-0"><span id="statRevenue">0</span> PLN</h2>
+                        </div>
+                        <div class="fs-1 text-success opacity-25"><i class="bi bi-cash-coin"></i></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-shadow bg-white p-3 border-start border-4 border-danger">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted text-uppercase mb-1">Priorytetowe</h6>
+                            <h2 class="mb-0" id="statPriority">0</h2>
+                        </div>
+                        <div class="fs-1 text-danger opacity-25"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-shadow">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="m-0 text-secondary">Lista Zleceń Serwisowych</h5>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#orderModal">
+                    <i class="bi bi-plus-circle me-2"></i>Nowe Zlecenie
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Klient / Auto</th>
+                                <th>Rodzaj Usługi</th>
+                                <th>Termin</th>
+                                <th>Koszt</th>
+                                <th>Status</th>
+                                <th class="text-end px-4">Opcje</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-white text-muted small">
+                System w wersji 4.2 | Ostatnia aktualizacja: <span id="lastUpdate">--:--</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="orderModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-car-front-fill me-2"></i>Rejestracja Pojazdu</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="serviceForm" class="needs-validation" novalidate>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="clientName" class="form-label">Imię i Nazwisko Klienta</label>
+                                <input type="text" class="form-control" id="clientName" placeholder="np. Jan Kowalski" required minlength="3">
+                                <div class="invalid-feedback">Podaj pełne imię i nazwisko (min. 3 znaki).</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="carPlate" class="form-label">Numer Rejestracyjny</label>
+                                <input type="text" 
+                                    class="form-control" 
+                                    id="carPlate" 
+                                    placeholder="np. DW 12345" 
+                                    required 
+                                    maxlength="9"
+                                    oninput="this.value = this.value.toUpperCase()"
+                                    pattern="^[A-Z]{2,3}\s?[A-Z0-9]{4,5}$">
+                                <div class="invalid-feedback">
+                                    Wymagany format: 2-3 litery + cyfry (np. DW 12345 lub WRA 99X1)
+                                </div>
+    </div>
+                            
+                            <div class="col-md-4">
+                                <label for="serviceType" class="form-label">Typ Usługi</label>
+                                <select class="form-select" id="serviceType" required>
+                                    <option value="" selected disabled>Wybierz...</option>
+                                    <option value="Przegląd olejowy">Przegląd olejowy</option>
+                                    <option value="Wymiana opon">Wymiana opon</option>
+                                    <option value="Naprawa hamulców">Naprawa hamulców</option>
+                                    <option value="Diagnostyka">Diagnostyka komputerowa</option>
+                                </select>
+                                <div class="invalid-feedback">Wybierz rodzaj usługi.</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="serviceDate" class="form-label">Data Realizacji</label>
+                                <input type="date" class="form-control" id="serviceDate" required>
+                                <div class="invalid-feedback">Data jest wymagana.</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="estimatedCost" class="form-label">Szacowany Koszt (PLN)</label>
+                                <div class="input-group has-validation">
+                                    <span class="input-group-text">PLN</span>
+                                    <input type="number" class="form-control" id="estimatedCost" min="50" required>
+                                    <div class="invalid-feedback">Minimum 50 PLN.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 mt-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="priorityCheck">
+                                    <label class="form-check-label fw-bold text-danger" for="priorityCheck">
+                                        Zlecenie priorytetowe (ASAP)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                    <button type="button" class="btn btn-primary" onclick="submitOrder()">Zapisz Zlecenie</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Potwierdź usunięcie</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <i class="bi bi-trash3 fs-1 text-danger mb-3 d-block"></i>
+                    <p class="mb-0 fs-5">Czy na pewno chcesz usunąć to zlecenie?</p>
+                    <small class="text-muted">Tej operacji nie można cofnąć.</small>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Nie, wróć</button>
+                    <button type="button" class="btn btn-danger px-4" id="confirmDeleteBtn">Tak, usuń</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let orders = [
+            { id: 101, client: "Marek Nowak", plate: "WJ 44211", type: "Wymiana opon", date: "2024-03-15", cost: 200, priority: false },
+            { id: 102, client: "Firma Transportex", plate: "PO 99881", type: "Naprawa hamulców", date: "2024-03-10", cost: 1200, priority: true },
+            { id: 103, client: "Anna Kowalska", plate: "KR 555XA", type: "Przegląd olejowy", date: "2024-04-01", cost: 450, priority: false }
+        ];
+
+        let deleteIdTarget = null;
+
+        function refreshTable() {
+            const tbody = document.getElementById('ordersTableBody');
+            tbody.innerHTML = '';
+            
+            let totalRevenue = 0;
+            let priorityCount = 0;
+
+            orders.forEach(order => {
+                totalRevenue += parseInt(order.cost);
+                if(order.priority) priorityCount++;
+
+                const row = document.createElement('tr');
+                if(order.priority) row.classList.add('table-warning');
+
+                const statusBadge = isDatePast(order.date) 
+                    ? '<span class="status-pill bg-secondary text-white">Zakończone</span>' 
+                    : '<span class="status-pill bg-success text-white">W toku</span>';
+
+                row.innerHTML = `
+                    <td>
+                        <div class="fw-bold">${order.client}</div>
+                        <div class="small text-muted font-monospace">${order.plate}</div>
+                    </td>
+                    <td>${order.type}</td>
+                    <td>${order.date}</td>
+                    <td class="fw-bold text-primary">${order.cost} PLN</td>
+                    <td>${statusBadge} ${order.priority ? '<span class="badge bg-danger ms-1">PILNE</span>' : ''}</td>
+                    <td class="text-end px-4">
+                        <button class="btn btn-sm btn-outline-secondary me-1" title="Edytuj"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="initiateDelete(${order.id})" title="Usuń"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('statPending').innerText = orders.length;
+            document.getElementById('statRevenue').innerText = totalRevenue.toLocaleString();
+            document.getElementById('statPriority').innerText = priorityCount;
+            
+            const now = new Date();
+            document.getElementById('lastUpdate').innerText = now.toLocaleTimeString();
+        }
+
+        function isDatePast(dateString) {
+            return new Date(dateString) < new Date();
+        }
+
+        function submitOrder() {
+            const form = document.getElementById('serviceForm');
+            
+            if (!form.checkValidity()) {
+                form.classList.add('was-validated');
+                showAlert('Uzupełnij poprawnie wszystkie pola formularza!', 'danger');
+                return;
+            }
+
+            const newOrder = {
+                id: Date.now(),
+                client: document.getElementById('clientName').value,
+                plate: document.getElementById('carPlate').value.toUpperCase(),
+                type: document.getElementById('serviceType').value,
+                date: document.getElementById('serviceDate').value,
+                cost: document.getElementById('estimatedCost').value,
+                priority: document.getElementById('priorityCheck').checked
+            };
+
+            orders.push(newOrder);
+            refreshTable();
+            
+            const modalEl = document.getElementById('orderModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+            
+            form.reset();
+            form.classList.remove('was-validated');
+            showAlert('Pomyślnie dodano nowe zlecenie.', 'success');
+        }
+
+        function initiateDelete(id) {
+            deleteIdTarget = id;
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+            deleteModal.show();
+        }
+
+        document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+            if (deleteIdTarget) {
+                orders = orders.filter(o => o.id !== deleteIdTarget);
+                refreshTable();
+                
+                const modalEl = document.getElementById('deleteConfirmModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                modal.hide();
+
+                showAlert('Zlecenie zostało trwale usunięte.', 'warning');
+                deleteIdTarget = null;
+            }
+        });
+
+        function showAlert(message, type) {
+            const alertPlaceholder = document.getElementById('alertContainer');
+            const wrapper = document.createElement('div');
+            
+            const icon = type === 'success' ? 'bi-check-circle' : (type === 'danger' ? 'bi-exclamation-octagon' : 'bi-info-circle');
+
+            wrapper.innerHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show shadow-lg border-0" role="alert">
+                    <i class="bi ${icon} me-2"></i> ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            alertPlaceholder.append(wrapper);
+
+            setTimeout(() => {
+                wrapper.remove();
+            }, 4000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshTable();
+            document.getElementById('serviceDate').valueAsDate = new Date();
+        });
+    </script>
+</body>
+</html>
